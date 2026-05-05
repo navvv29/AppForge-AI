@@ -1,172 +1,141 @@
 # AppForge AI
 
-AppForge AI is a multi-stage "compiler for software generation" that turns a natural language product prompt into a strict, validated, executable `FullAppSchema`.
+> A multi-stage AI app generation compiler that converts natural language into strict, validated, executable application configurations.
 
-## What it builds
+**Live URL:** [https://appforge-ai-hvco.onrender.com](https://appforge-ai-hvco.onrender.com)  
+**Repository:** [https://github.com/navvv29/AppForge-AI](https://github.com/navvv29/AppForge-AI)
 
-- **4-stage generation pipeline** (mandatory staged architecture)
-  1. `stage1-intent.ts` → `IntentSchema`
-  2. `stage2-architect.ts` → `AppArchitectureSchema`
-  3. `stage3-schema.ts` → `FullAppSchema`
-  4. `stage4-refine.ts` → refined `FullAppSchema`
-- **Validation + repair engine** after every stage
-  - JSON repair (brackets/quotes/trailing commas/fences)
-  - required field validation (targeted stage retry only)
-  - field-type normalization to allowed enum values
-  - no blind full retries
-- **Consistency + execution awareness**
-  - Stage 4 cross-layer repairs (UI ↔ API ↔ DB ↔ Auth)
-  - Simulator (`src/runtime/simulator.ts`) produces `SimulationReport`
-  - Conflict-aware handling: conflicting clauses are surfaced in `repairLog.clarificationRequired` while non-conflicting sections continue
-- **Delivery surfaces**
-  - API: `POST /generate`
-  - frontend: `public/index.html`
-  - CLI eval runner: `npm run eval`
+---
 
-## Contracts (strict schemas)
+## Architecture
 
-Defined via Zod + TypeScript in `src/schemas`:
-
-- `IntentSchema`
-- `AppArchitectureSchema`
-- `FullAppSchema`
-- `RepairLog`
-- `SimulationReport`
-
-All LLM stage prompts include the target schema contract and enforce JSON-only output.
-
-## Project structure
+AppForge AI is an engineered system — not a prompt wrapper. It operates like a compiler with discrete stages, strict schema contracts, and automatic repair.
 
 ```
-src
-  pipeline
-    stage1-intent.ts
-    stage2-architect.ts
-    stage3-schema.ts
-    stage4-refine.ts
-    generator.ts
-  validation
-    validator.ts
-    repair.ts
-  schemas
-    intent.schema.ts
-    architecture.schema.ts
-    app.schema.ts
-    repair.schema.ts
-  runtime
-    simulator.ts
-    api-runner.ts
-    db-migrator.ts
-  eval
-    eval-runner.ts
-    test-prompts.ts
-    metrics.ts
-  api
-    index.ts
-  index.ts
-public
-  index.html
+Natural Language → Stage 1 (Intent) → Stage 2 (Architecture) → Stage 3 (Schema) → Stage 4 (Refinement) → Simulation → FullAppSchema
 ```
 
-## Modes and tradeoffs
+### Pipeline Stages
 
-- `fast`: lower-cost profile, single-pass refinement behavior
-- `quality`: larger model profile, stricter multi-pass retries + second-pass consistency enforcement
+| Stage | Purpose | Output |
+|-------|---------|--------|
+| **Stage 1: Intent Extraction** | Parse entities, features, roles, integrations, ambiguities | `IntentSchema` |
+| **Stage 2: System Design** | Convert intent → pages, API groups, DB entities, auth model | `AppArchitectureSchema` |
+| **Stage 3: Schema Generation** | Generate full UI, API, DB, Auth, Business Logic configs | `FullAppSchema` |
+| **Stage 4: Refinement** | Cross-layer consistency resolution and repair | `FullAppSchema` (refined) |
+| **Simulation** | Validate executability across all layers | `SimulationReport` |
 
-Each run logs estimated `tokensUsed` and `costUsd`.
+### Output Schema (FullAppSchema)
 
-## Setup
+- **uiConfig** — Pages, routes, layouts, components with data bindings
+- **apiConfig** — Endpoints with methods, auth, request/response fields
+- **dbSchema** — Tables with typed columns and relations
+- **authConfig** — JWT/session/OAuth strategy, roles, route guards, permission rules
+- **businessLogic** — Feature flags, access gates, computed fields
 
-1. Install dependencies
-   - `npm install`
-2. Configure one provider
-   - OpenAI:
-     - `OPENAI_API_KEY=...`
-     - optional: `LLM_PROVIDER=openai`
-   - Anthropic:
-     - `ANTHROPIC_API_KEY=...`
-     - optional: `LLM_PROVIDER=anthropic`
-   - Groq:
-     - `GROQ_API_KEY=...`
-     - optional: `LLM_PROVIDER=groq`
-3. Without API keys, the system runs deterministic mock generation for local simulation.
-4. To make the live app use real AI, set one of these environment variable pairs on your host:
-   - `LLM_PROVIDER=groq` and `GROQ_API_KEY=...`
-   - `LLM_PROVIDER=openai` and `OPENAI_API_KEY=...`
-   - `LLM_PROVIDER=anthropic` and `ANTHROPIC_API_KEY=...`
-   The UI and `GET /ai-status` endpoint show whether real AI is active or the app is in mock mode.
+## Validation & Repair Engine
 
-## Run
+Each stage output is validated against strict Zod schemas. On failure:
 
-- Start API server:
-  - `npm run api`
-- Open frontend:
-  - `http://localhost:3000`
-- CLI single prompt:
-  - `npm run dev -- "Build a CRM with login, contacts, dashboard, role-based access, and premium plan with payments."`
-  - add fast mode: `--fast`
-- Evaluation runner:
-  - `npm run eval`
-  - outputs markdown tables to console and JSON metrics to `eval-output/metrics.json`
+1. **JSON Repair** — Strip code fences, fix smart quotes, remove trailing commas, quote unquoted keys
+2. **Field Type Normalization** — Map `varchar`→`string`, `timestamp`→`datetime`, `bool`→`boolean`, etc.
+3. **Constrained Retry** — Re-prompt with specific error messages (not blind retry)
+4. **Cross-Layer Resolution** — Auto-create missing endpoints, tables, columns, roles, feature flags
 
-## Free live deployment
+## Failure Handling
 
-This project needs a Node server because the browser calls `POST /generate`. GitHub Pages is useful for static HTML/CSS/JS only, so deploy the repository to a free Render Web Service for a working live URL.
+- **Vague prompts** → Reasonable defaults with documented assumptions
+- **Conflicting requirements** → Detected and logged in RepairLog with clarification requests
+- **Underspecified inputs** → Inferred from keyword analysis with assumptions list
 
-### 1. Push to GitHub
+## Tech Stack
+
+- **Runtime:** Node.js 20+ / TypeScript / Express
+- **LLM Providers:** Groq (llama-3.3-70b), OpenAI (gpt-4o), Anthropic (claude-3.7-sonnet)
+- **Schema Validation:** Zod 4 (strict mode)
+- **Deterministic Fallback:** Full mock generation pipeline for zero-cost testing
+
+## API Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/health` | Health check |
+| `GET` | `/ai-status` | Current AI provider info |
+| `POST` | `/generate` | Generate app schema from prompt |
+| `POST` | `/eval/single` | Fast vs quality mode comparison |
+
+### POST /generate
+
+```json
+// Request
+{ "prompt": "Build a CRM with login and payments", "mode": "fast" }
+
+// Response
+{ "fullAppSchema": {...}, "repairLog": {...}, "simulationReport": {...}, "metrics": {...} }
+```
+
+## Evaluation Framework
+
+**20 test prompts:** 10 real products (Suite A) + 10 edge cases (Suite B)
+
+**Suite A:** CRM, Blog, E-commerce, Project Management, Booking, HR, LMS, Support Tickets, Analytics, Multi-tenant B2B
+
+**Suite B:** Vague ("Build me an app"), Conflicting ("Everyone is admin AND no one can delete"), Incomplete, Overloaded, Privilege conflicts, Technically impossible
+
+**Tracked metrics:** Success rate, retries, failure types, latency, token usage, cost
+
+## Running Locally
 
 ```bash
-git init
-git add .
-git commit -m "prepare free deployment"
-gh repo create appforge-ai --public --source=. --remote=origin --push
+# Install
+npm ci
+
+# Dev mode (with hot reload)
+npm run dev -- "Build a CRM with login and payments"
+
+# API server
+npm run api
+
+# Build for production
+npm run build
+npm start
+
+# Run evaluation suite
+npm run eval
 ```
 
-### 2. Deploy on Render
+### Environment Variables
 
-1. Go to Render and create a new Blueprint or Web Service from the GitHub repository.
-2. If using the included `render.yaml`, Render will use:
-   - build command: `npm ci && npm run build`
-   - start command: `npm start`
-   - health check: `/health`
-3. Render will publish the app at `https://appforge-ai.onrender.com` if that service name is available, or at the generated `https://<service-name>.onrender.com` URL after the first successful deploy.
-4. Add `GROQ_API_KEY`, `OPENAI_API_KEY`, or `ANTHROPIC_API_KEY` in Render environment variables when you want real LLM output. Without keys, the app still runs with deterministic mock generation.
-
-## API contract
-
-### `GET /ai-status`
-
-Shows whether AppForge AI is using a real AI provider or deterministic mock generation.
-
-Response:
-
-```json
-{
-  "provider": "groq",
-  "configured": true,
-  "models": { "fast": "openai/gpt-oss-20b", "quality": "openai/gpt-oss-120b" },
-  "message": "Groq is configured. App generation uses real AI model calls."
-}
+```env
+LLM_PROVIDER=groq          # groq | openai | anthropic
+GROQ_API_KEY=gsk_...       # Required for Groq
+OPENAI_API_KEY=sk-...      # Required for OpenAI
+ANTHROPIC_API_KEY=sk-ant-  # Required for Anthropic
+PORT=3000                  # Server port
 ```
 
-### `POST /generate`
+## Cost vs Quality Tradeoffs
 
-Request:
+| Mode | Provider | Model | Latency | Cost | Quality |
+|------|----------|-------|---------|------|---------|
+| **fast** | Groq | llama-3.1-8b-instant | ~2s | ~$0.001 | Good |
+| **quality** | Groq | llama-3.3-70b-versatile | ~8s | ~$0.005 | High |
+| **quality** | OpenAI | gpt-4o | ~15s | ~$0.05 | Very High |
 
-```json
-{ "prompt": "Build a CRM with login, contacts, dashboard, role-based access, and premium plan with payments.", "mode": "quality" }
+## Project Structure
+
 ```
-
-Response:
-
-```json
-{
-  "mode": "quality",
-  "fullAppSchema": {},
-  "repairLog": { "entries": [], "totalRetries": 0, "clarificationRequired": [] },
-  "simulationReport": { "passed": true, "issues": [] },
-  "metrics": { "mode": "quality", "provider": "openai", "model": "gpt-4o", "tokensUsed": 0, "latencyMs": 0, "costUsd": 0 }
-}
+src/
+├── api/           # Express server
+├── llm/           # Multi-provider LLM client
+├── pipeline/      # 4-stage generation pipeline
+│   ├── stage1-intent.ts
+│   ├── stage2-architect.ts
+│   ├── stage3-schema.ts
+│   ├── stage4-refine.ts
+│   └── generator.ts
+├── schemas/       # Zod schema definitions
+├── validation/    # JSON repair + field normalization
+├── runtime/       # Simulator, API compiler, DB migrator
+└── eval/          # Evaluation framework
 ```
-
-If ambiguity/validation fails twice at any stage, it returns clarification-required output for that failing stage only.
