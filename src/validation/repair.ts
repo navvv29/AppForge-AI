@@ -34,17 +34,61 @@ function stripCodeFences(text: string): string {
     .trim();
 }
 
+function findBalancedJson(text: string, openChar: "{" | "[", closeChar: "}" | "]"): string | null {
+  const start = text.indexOf(openChar);
+  if (start < 0) {
+    return null;
+  }
+
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+
+  for (let index = start; index < text.length; index += 1) {
+    const char = text[index];
+
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+      } else if (char === "\\") {
+        escaped = true;
+      } else if (char === "\"") {
+        inString = false;
+      }
+      continue;
+    }
+
+    if (char === "\"") {
+      inString = true;
+      continue;
+    }
+    if (char === openChar) {
+      depth += 1;
+      continue;
+    }
+    if (char === closeChar) {
+      depth -= 1;
+      if (depth === 0) {
+        return text.slice(start, index + 1);
+      }
+    }
+  }
+
+  return null;
+}
+
 function clampToJsonObject(text: string): string {
   const objectStart = text.indexOf("{");
-  const objectEnd = text.lastIndexOf("}");
-  if (objectStart >= 0 && objectEnd > objectStart) {
-    return text.slice(objectStart, objectEnd + 1);
-  }
   const arrayStart = text.indexOf("[");
-  const arrayEnd = text.lastIndexOf("]");
-  if (arrayStart >= 0 && arrayEnd > arrayStart) {
-    return text.slice(arrayStart, arrayEnd + 1);
+
+  if (objectStart >= 0 && (arrayStart < 0 || objectStart < arrayStart)) {
+    return findBalancedJson(text, "{", "}") ?? text;
   }
+
+  if (arrayStart >= 0) {
+    return findBalancedJson(text, "[", "]") ?? text;
+  }
+
   return text;
 }
 

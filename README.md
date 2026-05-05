@@ -86,8 +86,12 @@ Each run logs estimated `tokensUsed` and `costUsd`.
    - Anthropic:
      - `ANTHROPIC_API_KEY=...`
      - optional: `LLM_PROVIDER=anthropic`
+   - Groq:
+     - `GROQ_API_KEY=...`
+     - optional: `LLM_PROVIDER=groq`
 3. Without API keys, the system runs deterministic mock generation for local simulation.
 4. To make the live app use real AI, set one of these environment variable pairs on your host:
+   - `LLM_PROVIDER=groq` and `GROQ_API_KEY=...`
    - `LLM_PROVIDER=openai` and `OPENAI_API_KEY=...`
    - `LLM_PROVIDER=anthropic` and `ANTHROPIC_API_KEY=...`
    The UI and `GET /ai-status` endpoint show whether real AI is active or the app is in mock mode.
@@ -126,7 +130,7 @@ gh repo create appforge-ai --public --source=. --remote=origin --push
    - start command: `npm start`
    - health check: `/health`
 3. Render will publish the app at `https://appforge-ai.onrender.com` if that service name is available, or at the generated `https://<service-name>.onrender.com` URL after the first successful deploy.
-4. Add `OPENAI_API_KEY` or `ANTHROPIC_API_KEY` in Render environment variables when you want real LLM output. Without keys, the app still runs with deterministic mock generation.
+4. Add `GROQ_API_KEY`, `OPENAI_API_KEY`, or `ANTHROPIC_API_KEY` in Render environment variables when you want real LLM output. Without keys, the app still runs with deterministic mock generation.
 
 ## API contract
 
@@ -138,10 +142,10 @@ Response:
 
 ```json
 {
-  "provider": "openai",
+  "provider": "groq",
   "configured": true,
-  "models": { "fast": "gpt-4o-mini", "quality": "gpt-4o" },
-  "message": "OpenAI is configured. App generation uses real AI model calls."
+  "models": { "fast": "openai/gpt-oss-20b", "quality": "openai/gpt-oss-120b" },
+  "message": "Groq is configured. App generation uses real AI model calls."
 }
 ```
 

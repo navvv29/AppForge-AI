@@ -3,7 +3,7 @@ import OpenAI from "openai";
 
 export type RunMode = "fast" | "quality";
 export type StageName = "stage1" | "stage2" | "stage3" | "stage4";
-export type Provider = "openai" | "anthropic" | "mock";
+export type Provider = "openai" | "anthropic" | "groq" | "mock";
 
 export interface LLMUsage {
   inputTokens: number;
@@ -64,6 +64,23 @@ const ANTHROPIC_PROFILES: Record<RunMode, ModelProfile> = {
   }
 };
 
+const GROQ_BASE_URL = "https://api.groq.com/openai/v1";
+
+const GROQ_PROFILES: Record<RunMode, ModelProfile> = {
+  fast: {
+    model: "openai/gpt-oss-20b",
+    maxOutputTokens: 2500,
+    inputRatePerMillion: 0.075,
+    outputRatePerMillion: 0.3
+  },
+  quality: {
+    model: "openai/gpt-oss-120b",
+    maxOutputTokens: 6000,
+    inputRatePerMillion: 0.15,
+    outputRatePerMillion: 0.6
+  }
+};
+
 const MOCK_MODELS: Record<RunMode, string> = {
   fast: "deterministic-mock",
   quality: "deterministic-mock"
@@ -71,6 +88,9 @@ const MOCK_MODELS: Record<RunMode, string> = {
 
 function resolveProvider(): Provider {
   const configuredProvider = process.env.LLM_PROVIDER?.toLowerCase();
+  if (configuredProvider === "groq" && process.env.GROQ_API_KEY) {
+    return "groq";
+  }
   if (configuredProvider === "anthropic" && process.env.ANTHROPIC_API_KEY) {
     return "anthropic";
   }
@@ -82,6 +102,9 @@ function resolveProvider(): Provider {
   }
   if (process.env.ANTHROPIC_API_KEY) {
     return "anthropic";
+  }
+  if (process.env.GROQ_API_KEY) {
+    return "groq";
   }
   return "mock";
 }
@@ -108,6 +131,17 @@ export function getAIProviderStatus(): AIProviderStatus {
         quality: ANTHROPIC_PROFILES.quality.model
       },
       message: "Anthropic is configured. App generation uses real AI model calls."
+    };
+  }
+  if (provider === "groq") {
+    return {
+      provider,
+      configured: true,
+      models: {
+        fast: GROQ_PROFILES.fast.model,
+        quality: GROQ_PROFILES.quality.model
+      },
+      message: "Groq is configured. App generation uses real AI model calls."
     };
   }
   return {
@@ -137,6 +171,7 @@ export class LLMClient {
   readonly provider: Provider;
   private readonly openai?: OpenAI;
   private readonly anthropic?: Anthropic;
+  private readonly groq?: OpenAI;
 
   constructor() {
     this.provider = resolveProvider();
@@ -146,6 +181,12 @@ export class LLMClient {
     }
     if (this.provider === "anthropic") {
       this.anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+    }
+    if (this.provider === "groq") {
+      this.groq = new OpenAI({
+        apiKey: process.env.GROQ_API_KEY,
+        baseURL: GROQ_BASE_URL
+      });
     }
   }
 
@@ -159,6 +200,9 @@ export class LLMClient {
     }
     if (this.provider === "anthropic") {
       return this.generateWithAnthropic(systemPrompt, userPrompt, mode);
+    }
+    if (this.provider === "groq") {
+      return this.generateWithGroq(systemPrompt, userPrompt, mode);
     }
     return this.generateMock(systemPrompt, userPrompt);
   }
@@ -228,6 +272,47 @@ export class LLMClient {
     return {
       text,
       provider: "anthropic",
+      model: profile.model,
+      usage: {
+        inputTokens,
+        outputTokens,
+        totalTokens: inputTokens + outputTokens,
+        latencyMs,
+        costUsd
+      }
+    };
+  }
+
+  private async generateWithGroq(systemPrompt: string, userPrompt: string, mode: RunMode): Promise<LLMCallResult> {
+    const profile = GROQ_PROFILES[mode];
+    const started = Date.now();
+
+    const response = await this.groq!.responses.create({
+      model: profile.model,
+      temperature: 0,
+      max_output_tokens: profile.maxOutputTokens,
+      input: [
+        {
+          role: "system",
+          content: [{ type: "input_text", text: systemPrompt }]
+        },
+        {
+          role: "user",
+          content: [{ type: "input_text", text: userPrompt }]
+        }
+      ]
+    });
+
+    const text = (response as { output_text?: string }).output_text ?? "";
+    const usage = (response as { usage?: Record<string, number> }).usage;
+    const inputTokens = usage?.input_tokens ?? usage?.prompt_tokens ?? estimateTokens(systemPrompt + userPrompt);
+    const outputTokens = usage?.output_tokens ?? usage?.completion_tokens ?? estimateTokens(text);
+    const latencyMs = Date.now() - started;
+    const costUsd = estimateCost(inputTokens, outputTokens, profile);
+
+    return {
+      text,
+      provider: "groq",
       model: profile.model,
       usage: {
         inputTokens,
