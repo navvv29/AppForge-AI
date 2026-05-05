@@ -310,14 +310,18 @@ export async function runStage4Refine(
   llm: LLMClient,
   retryInstruction?: string
 ): Promise<StageOutput<FullAppSchema>> {
-  if (llm.isMock() || mode === "fast") {
+  if (llm.isMock() || mode === "fast" || llm.provider === "groq") {
     const refined = resolveConsistency(schema).schema;
     const inputTokens = Math.ceil(JSON.stringify(schema).length / 4);
     const outputTokens = Math.ceil(JSON.stringify(refined).length / 4);
     return {
       raw: refined,
       provider: llm.provider,
-      model: llm.isMock() ? "deterministic-stage4" : "fast-consistency",
+      model: llm.isMock()
+        ? "deterministic-stage4"
+        : llm.provider === "groq"
+          ? "groq-safe-consistency"
+          : "fast-consistency",
       usage: {
         inputTokens,
         outputTokens,

@@ -334,14 +334,14 @@ export async function runStage3Schema(
   llm: LLMClient,
   retryInstruction?: string
 ): Promise<StageOutput<FullAppSchema>> {
-  if (llm.isMock()) {
+  if (llm.isMock() || llm.provider === "groq") {
     const inferred = inferFullSchema(architecture);
     const inputTokens = Math.ceil(JSON.stringify(architecture).length / 4);
     const outputTokens = Math.ceil(JSON.stringify(inferred).length / 4);
     return {
       raw: inferred,
       provider: llm.provider,
-      model: "deterministic-stage3",
+      model: llm.isMock() ? "deterministic-stage3" : "groq-safe-schema-compiler",
       usage: {
         inputTokens,
         outputTokens,
