@@ -20,6 +20,13 @@ export interface LLMCallResult {
   model: string;
 }
 
+export interface AIProviderStatus {
+  provider: Provider;
+  configured: boolean;
+  models: Record<RunMode, string>;
+  message: string;
+}
+
 type ModelProfile = {
   model: string;
   maxOutputTokens: number;
@@ -57,6 +64,60 @@ const ANTHROPIC_PROFILES: Record<RunMode, ModelProfile> = {
   }
 };
 
+const MOCK_MODELS: Record<RunMode, string> = {
+  fast: "deterministic-mock",
+  quality: "deterministic-mock"
+};
+
+function resolveProvider(): Provider {
+  const configuredProvider = process.env.LLM_PROVIDER?.toLowerCase();
+  if (configuredProvider === "anthropic" && process.env.ANTHROPIC_API_KEY) {
+    return "anthropic";
+  }
+  if (configuredProvider === "openai" && process.env.OPENAI_API_KEY) {
+    return "openai";
+  }
+  if (process.env.OPENAI_API_KEY) {
+    return "openai";
+  }
+  if (process.env.ANTHROPIC_API_KEY) {
+    return "anthropic";
+  }
+  return "mock";
+}
+
+export function getAIProviderStatus(): AIProviderStatus {
+  const provider = resolveProvider();
+  if (provider === "openai") {
+    return {
+      provider,
+      configured: true,
+      models: {
+        fast: OPENAI_PROFILES.fast.model,
+        quality: OPENAI_PROFILES.quality.model
+      },
+      message: "OpenAI is configured. App generation uses real AI model calls."
+    };
+  }
+  if (provider === "anthropic") {
+    return {
+      provider,
+      configured: true,
+      models: {
+        fast: ANTHROPIC_PROFILES.fast.model,
+        quality: ANTHROPIC_PROFILES.quality.model
+      },
+      message: "Anthropic is configured. App generation uses real AI model calls."
+    };
+  }
+  return {
+    provider,
+    configured: false,
+    models: MOCK_MODELS,
+    message: "No AI API key is configured. The app is running deterministic mock generation."
+  };
+}
+
 function estimateTokens(text: string): number {
   return Math.max(1, Math.ceil(text.length / 4));
 }
@@ -78,18 +139,7 @@ export class LLMClient {
   private readonly anthropic?: Anthropic;
 
   constructor() {
-    const configuredProvider = process.env.LLM_PROVIDER?.toLowerCase();
-    if (configuredProvider === "anthropic" && process.env.ANTHROPIC_API_KEY) {
-      this.provider = "anthropic";
-    } else if (configuredProvider === "openai" && process.env.OPENAI_API_KEY) {
-      this.provider = "openai";
-    } else if (process.env.OPENAI_API_KEY) {
-      this.provider = "openai";
-    } else if (process.env.ANTHROPIC_API_KEY) {
-      this.provider = "anthropic";
-    } else {
-      this.provider = "mock";
-    }
+    this.provider = resolveProvider();
 
     if (this.provider === "openai") {
       this.openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });

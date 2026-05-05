@@ -3,6 +3,7 @@ import cors from "cors";
 import express from "express";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { getAIProviderStatus } from "../llm/client.js";
 import { generateAppConfiguration } from "../pipeline/generator.js";
 
 const app = express();
@@ -16,6 +17,10 @@ app.use(express.static(publicDir));
 
 app.get("/health", (_req, res) => {
   res.json({ ok: true });
+});
+
+app.get("/ai-status", (_req, res) => {
+  res.json(getAIProviderStatus());
 });
 
 app.post("/generate", async (req, res) => {
@@ -41,6 +46,7 @@ app.post("/generate", async (req, res) => {
 
     res.json({
       mode,
+      ai: getAIProviderStatus(),
       fullAppSchema: result.fullAppSchema,
       repairLog: result.repairLog,
       simulationReport: result.simulationReport,

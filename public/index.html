@@ -560,7 +560,7 @@
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                   <path d="M12 2L14.6 8.1L21 10.7L14.6 13.3L12 19.4L9.4 13.3L3 10.7L9.4 8.1L12 2Z" fill="currentColor" />
                 </svg>
-                Powered by GPT-4o / Claude
+                <span id="aiStatusText">Checking AI provider...</span>
               </div>
             </div>
 
@@ -740,6 +740,7 @@
         const fileInput = document.getElementById("fileInput");
         const inputError = document.getElementById("inputError");
         const charCount = document.getElementById("charCount");
+        const aiStatusText = document.getElementById("aiStatusText");
         const toast = document.getElementById("toast");
         const copyBtn = document.getElementById("copyBtn");
         const downloadBtn = document.getElementById("downloadBtn");
@@ -758,6 +759,7 @@
         let selectedMode = "quality";
         let activeTab = "schema";
         let lastResult = null;
+        let aiProviderStatus = null;
         let toastTimer = 0;
 
         const examples = [
@@ -777,6 +779,7 @@
           modeFast.classList.toggle("active", !isQuality);
           modeQuality.setAttribute("aria-checked", String(isQuality));
           modeFast.setAttribute("aria-checked", String(!isQuality));
+          setAIStatus(aiProviderStatus);
         };
 
         const showToast = (message) => {
@@ -794,6 +797,29 @@
         };
 
         const pretty = (value) => JSON.stringify(value, null, 2);
+
+        const setAIStatus = (status) => {
+          if (!status || !aiStatusText) {
+            return;
+          }
+          aiProviderStatus = status;
+          const model = status.models?.[selectedMode] ?? status.provider ?? "unknown";
+          aiStatusText.textContent = status.configured
+            ? `AI active: ${status.provider} (${model})`
+            : "Mock mode: add an OpenAI or Anthropic key for real AI";
+        };
+
+        const loadAIStatus = async () => {
+          try {
+            const response = await fetch("/ai-status");
+            if (!response.ok) {
+              return;
+            }
+            setAIStatus(await response.json());
+          } catch {
+            aiStatusText.textContent = "AI status unavailable";
+          }
+        };
 
         const setOutputs = (payload) => {
           lastResult = payload;
@@ -842,6 +868,7 @@
               body: JSON.stringify({ prompt, mode: selectedMode })
             });
             const data = await response.json();
+            setAIStatus(data.ai);
 
             if (response.status === 400) {
               inputError.textContent = data?.error ?? "Prompt is required.";
@@ -954,6 +981,7 @@
         });
 
         updateCounter();
+        loadAIStatus();
       })();
     </script>
   </body>
