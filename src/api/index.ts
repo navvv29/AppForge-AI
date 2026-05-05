@@ -53,9 +53,11 @@ app.post("/generate", async (req, res) => {
       metrics: result.metrics
     });
   } catch (error) {
-    res.status(500).json({
-      error: "generation_failed",
-      message: error instanceof Error ? error.message : "Unknown error"
+    const message = error instanceof Error ? error.message : "Unknown error";
+    const isRateLimited = /rate limit|429/i.test(message);
+    res.status(isRateLimited ? 429 : 500).json({
+      error: isRateLimited ? "rate_limited" : "generation_failed",
+      message
     });
   }
 });

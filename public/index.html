@@ -553,8 +553,8 @@
           <section class="console" aria-label="Generation Console">
             <div class="console-top">
               <div class="mode-pills" role="radiogroup" aria-label="Mode">
-                <button id="modeQuality" class="mode-pill active" type="button" role="radio" aria-checked="true">quality</button>
-                <button id="modeFast" class="mode-pill" type="button" role="radio" aria-checked="false">fast</button>
+                <button id="modeQuality" class="mode-pill" type="button" role="radio" aria-checked="false">quality</button>
+                <button id="modeFast" class="mode-pill active" type="button" role="radio" aria-checked="true">fast</button>
               </div>
               <div class="powered">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -756,7 +756,7 @@
 
         const modeQuality = document.getElementById("modeQuality");
         const modeFast = document.getElementById("modeFast");
-        let selectedMode = "quality";
+        let selectedMode = "fast";
         let activeTab = "schema";
         let lastResult = null;
         let aiProviderStatus = null;
@@ -806,7 +806,7 @@
           const model = status.models?.[selectedMode] ?? status.provider ?? "unknown";
           aiStatusText.textContent = status.configured
             ? `AI active: ${status.provider} (${model})`
-            : "Mock mode: add an OpenAI or Anthropic key for real AI";
+            : "Mock mode: add a Groq, OpenAI, or Anthropic key for real AI";
         };
 
         const loadAIStatus = async () => {
@@ -887,8 +887,15 @@
               return;
             }
 
+            if (response.status === 429) {
+              inputError.textContent = "Provider rate limit reached. Try fast mode again in about 30 seconds.";
+              showToast("Rate limited by AI provider. Retry shortly.");
+              return;
+            }
+
             if (!response.ok) {
-              showToast("Generation failed. Please try again.");
+              inputError.textContent = data?.message ?? "Generation failed. Please try again.";
+              showToast(data?.message ?? "Generation failed. Please try again.");
               return;
             }
 
