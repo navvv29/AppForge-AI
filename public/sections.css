@@ -1,0 +1,16 @@
+.info-section{margin-top:48px;padding:32px;background:rgba(255,255,255,.92);border:1px solid rgba(0,0,0,.08);border-radius:18px}
+.info-section h2{font-family:Fustat,sans-serif;font-size:28px;font-weight:700;letter-spacing:-1.2px;margin:0 0 8px}
+.info-section h3{font-family:"Schibsted Grotesk",sans-serif;font-size:16px;font-weight:600;margin:20px 0 8px}
+.info-section p,.info-section li{font-size:14px;color:#505050;line-height:1.6}
+.info-section ul{padding-left:18px;margin:6px 0}
+.pipeline-flow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:18px 0}
+.pipeline-stage{background:#151515;color:#fff;border-radius:10px;padding:14px 18px;font-family:"Schibsted Grotesk",sans-serif;font-weight:600;font-size:13px;min-width:120px;text-align:center}
+.pipeline-stage small{display:block;font-weight:400;font-size:11px;opacity:.7;margin-top:4px}
+.pipeline-arrow{color:#999;font-size:20px}
+.schema-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin:16px 0}
+.schema-card{background:#fafafa;border:1px solid rgba(0,0,0,.08);border-radius:10px;padding:16px}
+.schema-card h4{font-family:"Schibsted Grotesk",sans-serif;font-size:14px;font-weight:600;margin:0 0 6px}
+.schema-card p{font-size:12px;margin:0}
+.api-endpoint{display:flex;gap:10px;align-items:center;padding:10px 14px;background:#f4f4f4;border-radius:8px;margin:6px 0;font-family:monospace;font-size:13px}
+.api-method{background:#151515;color:#fff;padding:3px 8px;border-radius:4px;font-size:11px;font-weight:700;min-width:48px;text-align:center}
+.api-method.post{background:#2e7d32}

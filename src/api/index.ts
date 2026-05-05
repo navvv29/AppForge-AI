@@ -16,7 +16,7 @@ const publicDir = path.resolve(__dirname, "../../public");
 app.use(express.static(publicDir));
 
 app.get("/health", (_req, res) => {
-  res.json({ ok: true });
+  res.json({ ok: true, timestamp: new Date().toISOString() });
 });
 
 app.get("/ai-status", (_req, res) => {
@@ -59,6 +59,44 @@ app.post("/generate", async (req, res) => {
       error: isRateLimited ? "rate_limited" : "generation_failed",
       message
     });
+  }
+});
+
+app.post("/eval/single", async (req, res) => {
+  const prompt = typeof req.body?.prompt === "string" ? req.body.prompt.trim() : "";
+  if (!prompt) {
+    res.status(400).json({ error: "prompt is required" });
+    return;
+  }
+
+  try {
+    const fastResult = await generateAppConfiguration(prompt, { mode: "fast" });
+    const qualityResult = await generateAppConfiguration(prompt, { mode: "quality" });
+
+    res.json({
+      prompt,
+      fast: {
+        success: !fastResult.failed && (!fastResult.failed && fastResult.simulationReport.passed),
+        retries: fastResult.repairLog?.totalRetries ?? 0,
+        repairs: fastResult.repairLog?.entries?.length ?? 0,
+        tokensUsed: fastResult.failed ? 0 : fastResult.metrics.tokensUsed,
+        latencyMs: fastResult.failed ? 0 : fastResult.metrics.latencyMs,
+        costUsd: fastResult.failed ? 0 : fastResult.metrics.costUsd,
+        failureType: fastResult.failed ? fastResult.failureType : null
+      },
+      quality: {
+        success: !qualityResult.failed && (!qualityResult.failed && qualityResult.simulationReport.passed),
+        retries: qualityResult.repairLog?.totalRetries ?? 0,
+        repairs: qualityResult.repairLog?.entries?.length ?? 0,
+        tokensUsed: qualityResult.failed ? 0 : qualityResult.metrics.tokensUsed,
+        latencyMs: qualityResult.failed ? 0 : qualityResult.metrics.latencyMs,
+        costUsd: qualityResult.failed ? 0 : qualityResult.metrics.costUsd,
+        failureType: qualityResult.failed ? qualityResult.failureType : null
+      }
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown error";
+    res.status(500).json({ error: "eval_failed", message });
   }
 });
 

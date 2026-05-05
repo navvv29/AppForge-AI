@@ -498,6 +498,7 @@
         }
       }
     </style>
+      <link rel="stylesheet" href="/sections.css" />
   </head>
   <body>
     <div class="video-layer" aria-hidden="true">
@@ -515,16 +516,11 @@
       <header class="nav">
         <div class="logo">AppForge AI</div>
         <nav class="nav-links" aria-label="Primary">
-          <button type="button">Pipeline</button>
-          <button type="button">
-            Schemas
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path d="M6 9L12 15L18 9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
-            </svg>
-          </button>
-          <button type="button">Evaluation</button>
-          <button type="button">Runtime</button>
-          <button type="button">API</button>
+          <button type="button" data-scroll="pipelineSection">Pipeline</button>
+          <button type="button" data-scroll="schemasSection">Schemas</button>
+          <button type="button" data-scroll="evalSection">Evaluation</button>
+          <button type="button" data-scroll="runtimeSection">Runtime</button>
+          <button type="button" data-scroll="apiSection">API</button>
         </nav>
         <div class="nav-actions">
           <button id="runEvalBtn" class="ghost-btn" type="button">Run Eval</button>
@@ -651,6 +647,112 @@
             <pre id="metricsRawOutput" style="margin-top: 12px;">Waiting for generation...</pre>
           </div>
         </section>
+      
+        <section class="info-section" id="pipelineSection">
+          <h2>Multi-Stage Generation Pipeline</h2>
+          <p>AppForge AI works like a compiler — natural language is parsed through 4 discrete stages, each validated independently with automatic repair.</p>
+          <div class="pipeline-flow">
+            <div class="pipeline-stage">Stage 1<small>Intent Extraction</small></div>
+            <span class="pipeline-arrow">→</span>
+            <div class="pipeline-stage">Stage 2<small>System Design</small></div>
+            <span class="pipeline-arrow">→</span>
+            <div class="pipeline-stage">Stage 3<small>Schema Generation</small></div>
+            <span class="pipeline-arrow">→</span>
+            <div class="pipeline-stage">Stage 4<small>Refinement &amp; Repair</small></div>
+            <span class="pipeline-arrow">→</span>
+            <div class="pipeline-stage" style="background:#2e7d32">Simulation<small>Execution Check</small></div>
+          </div>
+          <h3>How It Works</h3>
+          <ul>
+            <li><strong>Stage 1 — Intent Extraction:</strong> Parses entities, features, roles, integrations, and detects ambiguities/conflicts.</li>
+            <li><strong>Stage 2 — System Architecture:</strong> Converts intent into pages, API groups, DB entities, auth model (RBAC), and assumptions.</li>
+            <li><strong>Stage 3 — Full Schema Generation:</strong> Produces strict FullAppSchema with uiConfig, apiConfig, dbSchema, authConfig, and businessLogic.</li>
+            <li><strong>Stage 4 — Refinement:</strong> Cross-layer consistency resolution. Ensures UI bindings match API endpoints, API fields exist in DB, and roles are synchronized.</li>
+            <li><strong>Simulation:</strong> Validates the final output is executable — checks all bindings, roles, guards, and feature flags.</li>
+          </ul>
+          <h3>Validation &amp; Repair Engine</h3>
+          <p>Each stage output is validated against strict Zod schemas. If validation fails, the system attempts automatic repair (JSON fence stripping, smart quote fixing, trailing comma removal, field type normalization) before retrying with constrained prompts. This is not brute-force retry — it is targeted, schema-focused repair.</p>
+        </section>
+
+        <section class="info-section" id="schemasSection">
+          <h2>Schema Definitions</h2>
+          <p>Every output layer is defined with strict TypeScript/Zod contracts to guarantee type safety and cross-layer consistency.</p>
+          <div class="schema-grid">
+            <div class="schema-card"><h4>uiConfig</h4><p>Pages, routes, access roles, layouts, components with data bindings and visibility rules.</p></div>
+            <div class="schema-card"><h4>apiConfig</h4><p>Endpoints with paths, HTTP methods, auth requirements, request/response field contracts, source entities.</p></div>
+            <div class="schema-card"><h4>dbSchema</h4><p>Tables with typed columns (id, string, integer, boolean, datetime, enum, etc.) and relations.</p></div>
+            <div class="schema-card"><h4>authConfig</h4><p>JWT/session/OAuth strategy, roles, route guards, and fine-grained permission rules.</p></div>
+            <div class="schema-card"><h4>businessLogic</h4><p>Feature flags, access gates with plan requirements, and computed fields with expressions.</p></div>
+            <div class="schema-card"><h4>RepairLog</h4><p>Full audit trail of every repair, retry, and clarification request across all stages.</p></div>
+          </div>
+          <h3>Cross-Layer Guarantees</h3>
+          <ul>
+            <li>Every UI component data binding maps to an existing API endpoint</li>
+            <li>Every API endpoint field exists as a column in the corresponding DB table</li>
+            <li>Every role referenced in UI/API/guards exists in authConfig.roles</li>
+            <li>Every feature flag referenced by access gates or visibility rules is defined</li>
+          </ul>
+        </section>
+
+        <section class="info-section" id="evalSection">
+          <h2>Evaluation Framework</h2>
+          <p>The system is tested against 20 prompts: 10 real product descriptions (Suite A) and 10 edge cases (Suite B).</p>
+          <h3>Suite A — Real Products</h3>
+          <ul>
+            <li>CRM with contacts, deals, role-based access</li>
+            <li>SaaS blog platform with subscriptions</li>
+            <li>E-commerce store with inventory and checkout</li>
+            <li>Project management tool with tasks and teams</li>
+            <li>Booking system with calendar and payments</li>
+            <li>HR portal with onboarding and payroll</li>
+            <li>Learning management system with courses and quizzes</li>
+            <li>Support ticket system with SLA tracking</li>
+            <li>Analytics dashboard with user tracking</li>
+            <li>Multi-tenant B2B tool with org-level settings</li>
+          </ul>
+          <h3>Suite B — Edge Cases</h3>
+          <ul>
+            <li>"Build me an app" (vague)</li>
+            <li>"Everyone is admin AND no one can delete" (conflicting)</li>
+            <li>"Add payments" (incomplete)</li>
+            <li>Extremely long multi-feature prompt (overloaded)</li>
+            <li>"Guests can edit all content" (privilege conflict)</li>
+            <li>"Real-time + offline-first + no backend" (technically impossible)</li>
+          </ul>
+          <h3>Tracked Metrics</h3>
+          <p>Success rate, retries per request, failure types (validation / hallucination / mismatch / ambiguity), latency, token usage, cost per generation.</p>
+        </section>
+
+        <section class="info-section" id="runtimeSection">
+          <h2>Runtime &amp; Execution</h2>
+          <p>The generated FullAppSchema is designed to be directly executable. The system includes:</p>
+          <h3>Simulation Validator</h3>
+          <p>Before output is returned, a full simulation pass walks every UI component, API endpoint, DB table, auth rule, and business logic gate to verify cross-layer consistency. If issues are found, the system applies automatic repairs and re-simulates.</p>
+          <h3>API Route Compiler</h3>
+          <p>Extracts runtime route definitions from the schema — method, path, source entity, auth requirements, and role restrictions — ready for Express/Fastify mounting.</p>
+          <h3>DB Migration Generator</h3>
+          <p>Converts dbSchema tables into SQL CREATE TABLE statements with proper types (TEXT, INTEGER, REAL) and NOT NULL constraints.</p>
+        </section>
+
+        <section class="info-section" id="apiSection">
+          <h2>API Reference</h2>
+          <p>The AppForge AI server exposes these endpoints:</p>
+          <div class="api-endpoint"><span class="api-method">GET</span> /health — Health check</div>
+          <div class="api-endpoint"><span class="api-method">GET</span> /ai-status — Current AI provider and model info</div>
+          <div class="api-endpoint"><span class="api-method post">POST</span> /generate — Generate full app schema from prompt</div>
+          <div class="api-endpoint"><span class="api-method post">POST</span> /eval/single — Run fast vs quality comparison</div>
+          <h3>POST /generate</h3>
+          <p>Request body: <code>{ "prompt": "...", "mode": "fast" | "quality" }</code></p>
+          <p>Returns: <code>{ fullAppSchema, repairLog, simulationReport, metrics, ai }</code></p>
+          <h3>Error Handling</h3>
+          <ul>
+            <li><strong>400</strong> — Missing prompt</li>
+            <li><strong>422</strong> — Clarification required (ambiguous/conflicting input)</li>
+            <li><strong>429</strong> — AI provider rate limited</li>
+            <li><strong>500</strong> — Generation failed</li>
+          </ul>
+        </section>
+
       </main>
     </div>
 

@@ -68,16 +68,16 @@ const GROQ_BASE_URL = "https://api.groq.com/openai/v1";
 
 const GROQ_PROFILES: Record<RunMode, ModelProfile> = {
   fast: {
-    model: "openai/gpt-oss-20b",
-    maxOutputTokens: 2500,
-    inputRatePerMillion: 0.075,
-    outputRatePerMillion: 0.3
+    model: "llama-3.1-8b-instant",
+    maxOutputTokens: 4096,
+    inputRatePerMillion: 0.05,
+    outputRatePerMillion: 0.08
   },
   quality: {
-    model: "openai/gpt-oss-120b",
-    maxOutputTokens: 6000,
-    inputRatePerMillion: 0.15,
-    outputRatePerMillion: 0.6
+    model: "llama-3.3-70b-versatile",
+    maxOutputTokens: 8000,
+    inputRatePerMillion: 0.59,
+    outputRatePerMillion: 0.79
   }
 };
 
@@ -211,26 +211,20 @@ export class LLMClient {
     const profile = OPENAI_PROFILES[mode];
     const started = Date.now();
 
-    const response = await this.openai!.responses.create({
+    const response = await this.openai!.chat.completions.create({
       model: profile.model,
       temperature: 0,
-      max_output_tokens: profile.maxOutputTokens,
-      input: [
-        {
-          role: "system",
-          content: [{ type: "input_text", text: systemPrompt }]
-        },
-        {
-          role: "user",
-          content: [{ type: "input_text", text: userPrompt }]
-        }
+      max_tokens: profile.maxOutputTokens,
+      response_format: { type: "json_object" },
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt }
       ]
     });
 
-    const text = (response as { output_text?: string }).output_text ?? "";
-    const usage = (response as { usage?: Record<string, number> }).usage;
-    const inputTokens = usage?.input_tokens ?? usage?.prompt_tokens ?? estimateTokens(systemPrompt + userPrompt);
-    const outputTokens = usage?.output_tokens ?? usage?.completion_tokens ?? estimateTokens(text);
+    const text = response.choices?.[0]?.message?.content ?? "";
+    const inputTokens = response.usage?.prompt_tokens ?? estimateTokens(systemPrompt + userPrompt);
+    const outputTokens = response.usage?.completion_tokens ?? estimateTokens(text);
     const latencyMs = Date.now() - started;
     const costUsd = estimateCost(inputTokens, outputTokens, profile);
 
@@ -287,26 +281,20 @@ export class LLMClient {
     const profile = GROQ_PROFILES[mode];
     const started = Date.now();
 
-    const response = await this.groq!.responses.create({
+    const response = await this.groq!.chat.completions.create({
       model: profile.model,
       temperature: 0,
-      max_output_tokens: profile.maxOutputTokens,
-      input: [
-        {
-          role: "system",
-          content: [{ type: "input_text", text: systemPrompt }]
-        },
-        {
-          role: "user",
-          content: [{ type: "input_text", text: userPrompt }]
-        }
+      max_tokens: profile.maxOutputTokens,
+      response_format: { type: "json_object" },
+      messages: [
+        { role: "system", content: systemPrompt + "\n\nYou MUST respond with valid JSON only. No markdown, no commentary." },
+        { role: "user", content: userPrompt }
       ]
     });
 
-    const text = (response as { output_text?: string }).output_text ?? "";
-    const usage = (response as { usage?: Record<string, number> }).usage;
-    const inputTokens = usage?.input_tokens ?? usage?.prompt_tokens ?? estimateTokens(systemPrompt + userPrompt);
-    const outputTokens = usage?.output_tokens ?? usage?.completion_tokens ?? estimateTokens(text);
+    const text = response.choices?.[0]?.message?.content ?? "";
+    const inputTokens = response.usage?.prompt_tokens ?? estimateTokens(systemPrompt + userPrompt);
+    const outputTokens = response.usage?.completion_tokens ?? estimateTokens(text);
     const latencyMs = Date.now() - started;
     const costUsd = estimateCost(inputTokens, outputTokens, profile);
 
